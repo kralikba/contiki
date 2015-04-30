@@ -32,6 +32,10 @@ CFLAGS += -DUIP_CONF_TCP=1
 CFLAGS += -DWEBSERVER=2
 endif
 
+#WITH_RDNSS specifies whether nameserver advertisements are enabled
+WITH_RDNSS?=1
+CFLAGS += -DUIP_CONF_ND6_RA_RDNSS=$(WITH_RDNSS)
+
 ifeq ($(PREFIX),)
  PREFIX = aaaa::1/64
 endif

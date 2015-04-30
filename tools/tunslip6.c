@@ -59,6 +59,7 @@
 int verbose = 1;
 const char *ipaddr;
 const char *netmask;
+const char *nameserver = "::";
 int slipfd = 0;
 uint16_t basedelay=0,delaymsec=0;
 uint32_t startsec,startmsec,delaystartsec,delaystartmsec;
@@ -239,6 +240,30 @@ serial_to_tun(FILE *inslip, int outfd)
 	  }
 	  slip_send(slipfd, SLIP_END);
         }
+     else if(uip.inbuf[1] == 'N') {
+	 // nameserver info requested
+	   struct in6_addr addr;
+	   inet_pton(AF_INET6, nameserver, &addr);
+	   if(timestamp) stamptime();
+	   
+          fprintf(stderr,"*** Nameserver:%s => %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\n",
+		 nameserver, 
+		 addr.s6_addr[0], addr.s6_addr[1],
+		 addr.s6_addr[2], addr.s6_addr[3],
+		 addr.s6_addr[4], addr.s6_addr[5],
+		 addr.s6_addr[6], addr.s6_addr[7],
+		 addr.s6_addr[8], addr.s6_addr[9],
+		 addr.s6_addr[10], addr.s6_addr[11],
+		 addr.s6_addr[12], addr.s6_addr[13],
+		 addr.s6_addr[14], addr.s6_addr[15]);
+	  slip_send(slipfd, '!');
+	  slip_send(slipfd, 'N');
+	  for(i = 0; i < 16; i++) {
+	 	slip_send_char(slipfd, addr.s6_addr[i]);
+	  }
+	  slip_send(slipfd, SLIP_END);
+	 }
+	  
 #define DEBUG_LINE_MARKER '\r'
       } else if(uip.inbuf[0] == DEBUG_LINE_MARKER) {    
 	fwrite(uip.inbuf + 1, inbufptr - 1, 1, stdout);
@@ -704,7 +729,7 @@ main(int argc, char **argv)
   prog = argv[0];
   setvbuf(stdout, NULL, _IOLBF, 0); /* Line buffered output. */
 
-  while((c = getopt(argc, argv, "B:HLhs:t:v::d::a:p:T")) != -1) {
+  while((c = getopt(argc, argv, "B:HLhs:t:v::d::a:p:Tn:")) != -1) {
     switch(c) {
     case 'B':
       baudrate = atoi(optarg);
@@ -755,7 +780,11 @@ main(int argc, char **argv)
     case 'T':
       tap = 1;
       break;
- 
+
+	case 'n':
+	  nameserver = optarg;
+	  break;
+
     case '?':
     case 'h':
     default:
@@ -783,6 +812,7 @@ fprintf(stderr,"    -v          Equivalent to -v3\n");
 fprintf(stderr," -d[basedelay]  Minimum delay between outgoing SLIP packets.\n");
 fprintf(stderr,"                Actual delay is basedelay*(#6LowPAN fragments) milliseconds.\n");
 fprintf(stderr,"                -d is equivalent to -d10.\n");
+fprintf(stderr," -n nsaddr      Nameserver address\n");
 fprintf(stderr," -a serveraddr  \n");
 fprintf(stderr," -p serverport  \n");
 exit(1);
@@ -793,7 +823,7 @@ exit(1);
   argv += (optind - 1);
 
   if(argc != 2 && argc != 3) {
-    err(1, "usage: %s [-B baudrate] [-H] [-L] [-s siodev] [-t tundev] [-T] [-v verbosity] [-d delay] [-a serveraddress] [-p serverport] ipaddress", prog);
+    err(1, "usage: %s [-B baudrate] [-H] [-L] [-s siodev] [-t tundev] [-T] [-v verbosity] [-d delay] [-n nsaddr] [-a serveraddress] [-p serverport] ipaddress", prog);
   }
   ipaddr = argv[1];
 

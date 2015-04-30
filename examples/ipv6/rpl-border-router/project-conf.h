@@ -51,4 +51,20 @@
 #define WEBSERVER_CONF_CFS_CONNS 2
 #endif
 
+#ifndef UIP_CONF_ND6_SEND_RA
+#define UIP_CONF_ND6_SEND_RA 1
+#endif
+
+#ifndef UIP_CONF_ND6_RA_RDNSS
+#define UIP_CONF_ND6_RA_RDNSS 1
+#endif
+
+#if UIP_CONF_ND6_RA_RDNSS
+#if !UIP_CONF_ND6_SEND_RA
+#warning UIP_CONF_ND6_SEND_RA forced to 1
+#undef UIP_CONF_ND6_SEND_RA
+#define UIP_CONF_ND6_SEND_RA 1
+#endif 
+#endif
+
 #endif /* PROJECT_ROUTER_CONF_H_ */

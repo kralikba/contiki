@@ -51,11 +51,15 @@
 #include <string.h>
 #include <ctype.h>
 
+
 #define DEBUG DEBUG_NONE
 #include "net/ip/uip-debug.h"
+#include "net/ip/uip-nameserver.h"
+#include "net/ipv6/uip-nd6.h"
 
 static uip_ipaddr_t prefix;
 static uint8_t prefix_set;
+static uint8_t nameserver_set;
 
 PROCESS(border_router_process, "Border router process");
 
@@ -331,6 +335,39 @@ set_prefix_64(uip_ipaddr_t *prefix_64)
     PRINTF("created a new RPL dag\n");
   }
 }
+
+#if UIP_ND6_RA_RDNSS
+/*---------------------------------------------------------------------------*/
+void 
+request_nameserver(void)
+{
+  uip_buf[0] = '?';
+  uip_buf[1] = 'N';
+  uip_len = 2;
+  slip_send();
+  uip_len = 0;
+}
+/*---------------------------------------------------------------------------*/
+void
+set_nameserver(uip_ipaddr_t *nsaddr)
+{
+  int nz = 0;
+  int i; 
+  nameserver_set=1;
+  for(i=0; i<8; i++)
+  {
+    nz |= nsaddr->u16[i] != 0;
+  }
+  if(nz) { 
+    PRINTF("nameserver set to ");
+    PRINT6ADDR(nsaddr);
+    PRINTF("\n");
+    uip_nameserver_update(nsaddr, UIP_NAMESERVER_INFINITE_LIFETIME);
+  } else { // all zeros signify that a nameserver is not to be set.
+    PRINTF("received empty nameserver configuration\n");
+  }
+}
+#endif
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(border_router_process, ev, data)
 {
@@ -344,6 +381,7 @@ PROCESS_THREAD(border_router_process, ev, data)
  * Prevent that by turning the radio off until we are initialized as a DAG root.
  */
   prefix_set = 0;
+  nameserver_set = 0;
   NETSTACK_MAC.off(0);
 
   PROCESS_PAUSE();
@@ -365,7 +403,19 @@ PROCESS_THREAD(border_router_process, ev, data)
     request_prefix();
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
   }
-
+  
+#if UIP_ND6_RA_RDNSS
+  /* Request nameserver; if no response received within time limit, proceed.*/
+  { 
+    int maxretries = 15;
+    while(!nameserver_set && maxretries) {
+      etimer_set(&et, CLOCK_SECOND);
+      request_nameserver();
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+    }
+  }
+#endif
+  
   /* Now turn the radio on, but disable radio duty cycling.
    * Since we are the DAG root, reception delays would constrain mesh throughbut.
    */

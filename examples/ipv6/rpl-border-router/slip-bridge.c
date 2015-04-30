@@ -50,6 +50,9 @@
 #include "net/ip/uip-debug.h"
 
 void set_prefix_64(uip_ipaddr_t *);
+#if UIP_ND6_RA_RDNSS
+void set_nameserver(uip_ipaddr_t *);
+#endif
 
 static uip_ipaddr_t last_sender;
 /*---------------------------------------------------------------------------*/
@@ -69,7 +72,18 @@ slip_input_callback(void)
       PRINT6ADDR(&prefix);
       PRINTF("\n");
       set_prefix_64(&prefix);
+    } 
+#if UIP_ND6_RA_RDNSS
+      else if(uip_buf[1] == 'N') {
+      uip_ipaddr_t addr;
+      
+      memcpy(&addr, &uip_buf[2], 16);
+      PRINTF("Setting nameserver ");
+      PRINT6ADDR(&addr);
+      PRINTF("\n");
+      set_nameserver(&addr);
     }
+#endif
   } else if (uip_buf[0] == '?') {
     PRINTF("Got request message of type %c\n", uip_buf[1]);
     if(uip_buf[1] == 'M') {
