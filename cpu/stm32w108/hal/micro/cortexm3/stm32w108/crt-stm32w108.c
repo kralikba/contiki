@@ -397,7 +397,7 @@ int _open (const char * path,
 {
   return -1;
 }
-int _fflush_r(struct _reent *r, FILE *f)
+int __wrap__fflush_r(struct _reent *r, FILE *f)
 {
   return 0;
 }

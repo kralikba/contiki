@@ -47,14 +47,20 @@ CONTIKI_TARGET_SOURCEFILES += $(STM32W_C) \
 CONTIKI_SOURCEFILES        += $(CONTIKI_TARGET_SOURCEFILES)
 
 ifdef IAR
-TARGET_LIBFILES = $(CONTIKI_CPU)/simplemac/library/simplemac-library.a
+ TARGET_LIBFILES += $(CONTIKI_CPU)/simplemac/library/simplemac-library.a
 else
+ TARGET_LIBFILES += $(CONTIKI_CPU)/simplemac/library/simplemac-library-gnu.a
  ifdef PRINTF_FLOAT
- TARGET_LIBFILES = $(CONTIKI_CPU)/simplemac/library/simplemac-library-gnu.a $(CONTIKI_CPU)/hal/micro/cortexm3/e_stdio_thumb2.a 
+ PROJECT_OBJECTFILES += $(CONTIKI_CPU)/hal/micro/cortexm3/e_stdio_thumb2.gcc.a 
  else
- TARGET_LIBFILES = $(CONTIKI_CPU)/simplemac/library/simplemac-library-gnu.a $(CONTIKI_CPU)/lib/e_stdio_intonly_thumb2.a
+ PROJECT_OBJECTFILES += $(CONTIKI_CPU)/lib/e_stdio_intonly_thumb2.gcc.a
  endif
+
+%.gcc.a: %.a $(CONTIKI_CPU)/wrap.map
+	$(OBJCOPY) --redefine-syms=$(CONTIKI_CPU)/wrap.map $< $@
+
 endif
+
 #									`$(CC) -print-file-name=thumb2/libc.a` `$(CC) -print-file-name=thumb2/libgcc.a`
 
 ### Compiler definitions
@@ -87,7 +93,7 @@ OBJOPTS = --bin
 else
 # GCC
 CC	 = arm-none-eabi-gcc
-LD       = arm-none-eabi-gcc
+LD   = arm-none-eabi-gcc
 AS	 = arm-none-eabi-gcc
 NM	 = arm-none-eabi-nm
 AR       = arm-none-eabi-ar
@@ -124,14 +130,17 @@ ifndef CPU_LD_CONFIG
 CPU_LD_CONFIG=$(CONTIKI_CPU)/gnu$(LD-EXT).ld
 endif # CPU_LD_CONFIG
 
-LDFLAGS +=  -L$(CONTIKI_CPU)\
+LDFLAGS +=  -L$(CONTIKI_CPU) \
 	    -mcpu=cortex-m3 \
 	    -mthumb  \
 	    -Wl,-T -Xlinker $(CPU_LD_CONFIG) \
 	    -Wl,-static \
 			-u Default_Handler \
 	    -nostartfiles \
-	    -Wl,-Map -Xlinker contiki-$(TARGET).map
+	    -Wl,-Map -Xlinker contiki-$(TARGET).map \
+      -Wl,--wrap=vfiprintf \
+      -Wl,--wrap=vfiprintf_r \
+      -Wl,--wrap=_fflush_r
 	    
 ifndef ELF_LOADER
  # Do not use garbage collection when the elfloader is used.
