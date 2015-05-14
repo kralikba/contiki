@@ -126,6 +126,7 @@ SECTIONS
     PROVIDE ( _end = _ebss );
        
     __exidx_start = .;
+    .ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
     __exidx_end = .;
 
     /* remove the debugging information from the standard libraries */
